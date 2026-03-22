@@ -1,193 +1,405 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FACP Simulator — Fire Alarm Control Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0}
-  :root{
-    --panel:#1a1e24;--panel-face:#1f242c;--panel-border:#2e3540;
-    --led-off:#1a2a1a;--led-on:#00ff44;--led-alarm:#ff2020;--led-fault:#ffaa00;--led-ack:#ff8800;
-    --btn:#2a3040;--btn-h:#353d50;--btn-border:#3a4455;
-    --text-dim:#5a6a7a;--text-mid:#8a9aaa;--text-hi:#c8d8e8;--text-alarm:#ff4444;--text-fault:#ffaa00;--text-ok:#00cc44;
-    --seg:#0a1a0a;--seg-on:#00ff44;
-    --amber:#ffaa00;--red:#ff2020;--green:#00cc44;--blue:#4488ff;
-  }
-  body{background:var(--panel);font-family:'Share Tech Mono',monospace;color:var(--text-hi);min-height:100vh;padding:12px}
-  .panel-wrap{max-width:900px;margin:0 auto;background:var(--panel-face);border:2px solid var(--panel-border);border-radius:8px;overflow:hidden}
-  .panel-header{background:#141820;border-bottom:2px solid var(--panel-border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
-  .panel-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:3px;color:var(--text-hi);text-transform:uppercase}
-  .panel-sub{font-size:10px;color:var(--text-dim);letter-spacing:2px}
-  .main-display{background:#0d1117;border:1px solid var(--panel-border);margin:12px;border-radius:4px;padding:10px;min-height:80px}
-  .disp-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-  .disp-label{font-size:10px;color:var(--text-dim);width:80px;flex-shrink:0;letter-spacing:1px}
-  .disp-val{font-size:13px;color:var(--text-hi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .disp-val.alarm{color:var(--text-alarm);animation:blink 0.5s infinite}
-  .disp-val.fault{color:var(--text-fault)}
-  .disp-val.ok{color:var(--text-ok)}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
-  .sections{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 12px 12px}
-  .section{background:#141820;border:1px solid var(--panel-border);border-radius:4px;padding:10px}
-  .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;border-bottom:1px solid var(--panel-border);padding-bottom:6px;margin-bottom:8px}
-  .device-list{display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto}
-  .device-row{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:3px;cursor:pointer;transition:background 0.15s;border:1px solid transparent}
-  .device-row:hover{background:#1f2a38;border-color:var(--panel-border)}
-  .device-row.alarm-state{background:#2a0a0a;border-color:#cc2020}
-  .device-row.fault-state{background:#2a1a00;border-color:#cc7700}
-  .dev-led{width:8px;height:8px;border-radius:50%;background:var(--led-off);flex-shrink:0;box-shadow:none}
-  .dev-led.on{background:var(--led-on);box-shadow:0 0 4px var(--led-on)}
-  .dev-led.alarm{background:var(--led-alarm);box-shadow:0 0 4px var(--led-alarm);animation:blink 0.5s infinite}
-  .dev-led.fault{background:var(--led-fault);box-shadow:0 0 4px var(--led-fault)}
-  .dev-addr{font-size:10px;color:var(--text-dim);width:42px;flex-shrink:0}
-  .dev-type{font-size:10px;color:var(--text-mid);width:34px;flex-shrink:0;text-align:center;background:#1a2030;border-radius:2px;padding:1px 3px}
-  .dev-name{font-size:11px;color:var(--text-hi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .dev-status{font-size:10px;width:46px;text-align:right;flex-shrink:0}
-  .dev-status.normal{color:var(--text-dim)}
-  .dev-status.alarm{color:var(--text-alarm)}
-  .dev-status.fault{color:var(--text-fault)}
-  .dev-status.ack{color:var(--amber)}
-  .ce-list{display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto}
-  .ce-row{padding:6px 8px;border-radius:3px;border:1px solid var(--panel-border);font-size:11px}
-  .ce-row.active{border-color:#cc2020;background:#200a0a}
-  .ce-if{color:var(--text-dim);margin-bottom:3px}
-  .ce-then{color:var(--text-mid)}
-  .ce-if span,.ce-then span{font-weight:600}
-  .ce-if span{color:var(--amber)}
-  .ce-then span{color:var(--blue)}
-  .ce-row.active .ce-if span{color:var(--red);animation:blink 1s infinite}
-  .btn-panel{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 12px 12px}
-  .btn{background:var(--btn);border:1px solid var(--btn-border);color:var(--text-mid);font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:9px 6px;border-radius:3px;cursor:pointer;text-transform:uppercase;transition:all 0.1s;text-align:center;user-select:none}
-  .btn:hover{background:var(--btn-h);color:var(--text-hi)}
-  .btn:active{transform:scale(0.97)}
-  .btn.red{border-color:#992020;color:#ff4444}
-  .btn.red:hover{background:#2a0a0a}
-  .btn.amber{border-color:#996600;color:var(--amber)}
-  .btn.amber:hover{background:#2a1500}
-  .btn.green{border-color:#226622;color:var(--green)}
-  .btn.green:hover{background:#0a1f0a}
-  .btn.blue{border-color:#224488;color:var(--blue)}
-  .btn.blue:hover{background:#0a1530}
-  .indicator-row{display:flex;gap:8px;padding:0 12px 10px;flex-wrap:wrap}
-  .ind{display:flex;align-items:center;gap:5px}
-  .ind-led{width:10px;height:10px;border-radius:50%;background:var(--led-off)}
-  .ind-led.on{box-shadow:0 0 5px currentColor}
-  .ind-led.normal{background:var(--led-on);color:var(--led-on)}
-  .ind-led.alarm{background:var(--led-alarm);color:var(--led-alarm);animation:blink 0.5s infinite}
-  .ind-led.fault{background:var(--led-fault);color:var(--led-fault);animation:blink 1s infinite}
-  .ind-led.ack{background:var(--led-ack);color:var(--led-ack)}
-  .ind-led.sounder{background:var(--blue);color:var(--blue);animation:blink 0.4s infinite}
-  .ind-label{font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
-  .log-wrap{padding:0 12px 12px}
-  .log-box{background:#0a0d12;border:1px solid var(--panel-border);border-radius:4px;height:90px;overflow-y:auto;padding:6px 8px}
-  .log-entry{font-size:10px;color:var(--text-dim);line-height:1.6;border-bottom:1px solid #1a2030;padding:1px 0}
-  .log-entry.alarm{color:#ff6666}
-  .log-entry.fault{color:#ffbb44}
-  .log-entry.ok{color:#44cc66}
-  .log-entry.info{color:#5588cc}
-  .zone-badge{display:inline-block;font-size:9px;padding:1px 4px;border-radius:2px;background:#1a2540;color:#4488ff;margin-left:4px}
-  .output-row{display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:3px;border:1px solid var(--panel-border);font-size:11px}
-  .output-row.active{border-color:#2244aa;background:#0a1530}
-  .out-led{width:8px;height:8px;border-radius:50%;background:var(--led-off);flex-shrink:0}
-  .out-led.on{background:var(--blue);box-shadow:0 0 4px var(--blue);animation:blink 0.4s infinite}
-  .out-name{flex:1;color:var(--text-mid)}
-  .out-name.on{color:var(--text-hi)}
-  .out-status{font-size:10px;color:var(--text-dim)}
-  .out-status.on{color:var(--blue)}
-  .scenario-bar{background:#141820;border-top:2px solid var(--panel-border);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .scn-label{font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;flex-shrink:0}
-  .scn-btn{background:#0d1520;border:1px solid #223355;color:#4488cc;font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 9px;border-radius:3px;cursor:pointer;letter-spacing:1px;transition:all 0.1s}
-  .scn-btn:hover{background:#1a2840;color:#66aaff}
-  .tooltip{position:relative}
-  .tooltip:hover::after{content:attr(data-tip);position:absolute;bottom:110%;left:50%;transform:translateX(-50%);background:#0d1117;border:1px solid var(--panel-border);color:var(--text-hi);font-size:10px;padding:4px 8px;border-radius:3px;white-space:nowrap;z-index:10;pointer-events:none}
-  .full-width{grid-column:1/-1}
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --panel:#13171e;--panel-face:#181d26;--panel-border:#252d3a;--panel-deep:#0d1016;
+  --led-off:#0f1f0f;--led-on:#00e63d;--led-alarm:#ff1a1a;--led-fault:#ffaa00;--led-ack:#ff8800;--led-blue:#2266ff;
+  --btn:#222a38;--btn-h:#2d3848;--btn-border:#2e3a4e;
+  --text-dim:#4a5a6e;--text-mid:#7a8a9e;--text-hi:#bccde0;--text-bright:#ddeeff;
+  --text-alarm:#ff4444;--text-fault:#ffaa00;--text-ok:#00cc44;--text-blue:#4488ff;--text-info:#44aaff;
+  --amber:#ffaa00;--red:#ff2020;--green:#00cc44;--blue:#3377ff;--cyan:#00bbcc;
+  --seg-bg:#080e08;
+}
+html,body{height:100%;background:var(--panel);font-family:'Share Tech Mono',monospace;color:var(--text-hi);overflow-x:hidden}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{position:fixed;inset:0;background:var(--panel-deep);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:0}
+.login-box{background:var(--panel-face);border:1px solid var(--panel-border);border-radius:6px;padding:32px 36px;width:320px;text-align:center}
+.login-logo{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:4px;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px}
+.login-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;letter-spacing:3px;color:var(--text-bright);text-transform:uppercase;margin-bottom:24px}
+.pin-display{background:var(--panel-deep);border:1px solid var(--panel-border);border-radius:4px;padding:12px;font-size:24px;letter-spacing:8px;color:var(--text-ok);text-align:center;margin-bottom:16px;min-height:52px;font-family:'Share Tech Mono',monospace}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.key{background:var(--btn);border:1px solid var(--btn-border);color:var(--text-hi);font-family:'Share Tech Mono',monospace;font-size:16px;padding:12px;border-radius:4px;cursor:pointer;transition:all 0.1s;user-select:none}
+.key:hover{background:var(--btn-h);color:var(--text-bright)}
+.key:active{transform:scale(0.95)}
+.key.wide{grid-column:span 2}
+.key.red{border-color:#662020;color:#ff6666}
+.key.green{border-color:#226622;color:#44cc66}
+.login-hint{font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:12px;line-height:1.8}
+.login-hint span{color:var(--text-mid)}
+.login-err{color:var(--text-alarm);font-size:11px;margin-top:8px;min-height:16px}
+.level-badge{display:inline-block;font-size:10px;padding:3px 10px;border-radius:3px;letter-spacing:2px;margin-bottom:16px}
+.level-op{background:#1a2a1a;color:#44cc66;border:1px solid #226622}
+.level-tech{background:#1a1a2a;color:#4488ff;border:1px solid #224488}
+.level-admin{background:#2a1a00;color:#ffaa00;border:1px solid #664400}
+
+/* ── MAIN LAYOUT ── */
+#app{display:none;flex-direction:column;min-height:100vh}
+.app-header{background:var(--panel-deep);border-bottom:2px solid var(--panel-border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.app-title{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;letter-spacing:4px;color:var(--text-bright);text-transform:uppercase}
+.app-sub{font-size:9px;color:var(--text-dim);letter-spacing:2px;margin-top:2px}
+.header-right{display:flex;align-items:center;gap:12px}
+#clock{font-size:11px;color:var(--text-mid);text-align:right;line-height:1.5}
+.user-info{display:flex;align-items:center;gap:8px}
+.user-badge{font-size:10px;padding:3px 10px;border-radius:3px;letter-spacing:2px;cursor:pointer}
+.logout-btn{font-size:10px;color:var(--text-dim);background:none;border:1px solid var(--panel-border);padding:3px 8px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;letter-spacing:1px}
+.logout-btn:hover{color:var(--text-hi);border-color:var(--text-dim)}
+
+/* ── TABS ── */
+.tabs{display:flex;border-bottom:1px solid var(--panel-border);background:var(--panel-deep)}
+.tab{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:3px;text-transform:uppercase;padding:10px 20px;cursor:pointer;color:var(--text-dim);border-bottom:2px solid transparent;transition:all 0.15s;user-select:none}
+.tab:hover{color:var(--text-mid)}
+.tab.active{color:var(--text-bright);border-bottom-color:var(--blue)}
+.tab.locked{color:var(--text-dim);opacity:0.4;cursor:not-allowed}
+.tab-content{display:none;flex:1}
+.tab-content.active{display:block}
+
+/* ── PANEL VIEW ── */
+.main-display{background:var(--panel-deep);border:1px solid var(--panel-border);margin:12px;border-radius:4px;padding:10px}
+.disp-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.disp-label{font-size:10px;color:var(--text-dim);width:80px;flex-shrink:0;letter-spacing:1px}
+.disp-val{font-size:13px;color:var(--text-hi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.disp-val.alarm{color:var(--text-alarm);animation:blink 0.5s infinite}
+.disp-val.fault{color:var(--text-fault)}
+.disp-val.ok{color:var(--text-ok)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.sections{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 12px 12px}
+@media(max-width:640px){.sections{grid-template-columns:1fr}}
+.section{background:var(--panel-deep);border:1px solid var(--panel-border);border-radius:4px;padding:10px}
+.sec-title{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;border-bottom:1px solid var(--panel-border);padding-bottom:6px;margin-bottom:8px}
+.device-list{display:flex;flex-direction:column;gap:3px;max-height:260px;overflow-y:auto}
+.device-row{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:3px;cursor:pointer;transition:background 0.15s;border:1px solid transparent}
+.device-row:hover{background:#1a2330;border-color:var(--panel-border)}
+.device-row.alarm-state{background:#220a0a;border-color:#882020}
+.device-row.fault-state{background:#221500;border-color:#885500}
+.dev-led{width:8px;height:8px;border-radius:50%;background:var(--led-off);flex-shrink:0}
+.dev-led.on{background:var(--led-on);box-shadow:0 0 4px var(--led-on)}
+.dev-led.alarm{background:var(--led-alarm);box-shadow:0 0 4px var(--led-alarm);animation:blink 0.5s infinite}
+.dev-led.fault{background:var(--led-fault);box-shadow:0 0 4px var(--led-fault)}
+.dev-addr{font-size:10px;color:var(--text-dim);width:42px;flex-shrink:0}
+.dev-type{font-size:10px;color:var(--text-mid);width:34px;flex-shrink:0;text-align:center;background:#181f2e;border-radius:2px;padding:1px 3px}
+.dev-name{font-size:11px;color:var(--text-hi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dev-status{font-size:10px;width:46px;text-align:right;flex-shrink:0}
+.dev-status.normal{color:var(--text-dim)}
+.dev-status.alarm{color:var(--text-alarm)}
+.dev-status.fault{color:var(--text-fault)}
+.dev-status.ack{color:var(--amber)}
+.zone-badge{display:inline-block;font-size:9px;padding:1px 4px;border-radius:2px;background:#111e33;color:#3377cc;margin-left:4px}
+.ce-list{display:flex;flex-direction:column;gap:4px;max-height:170px;overflow-y:auto}
+.ce-row{padding:5px 8px;border-radius:3px;border:1px solid var(--panel-border);font-size:11px}
+.ce-row.active{border-color:#882020;background:#180808}
+.ce-row.disabled-rule{opacity:0.4}
+.ce-if{color:var(--text-dim);margin-bottom:2px}
+.ce-then{color:var(--text-mid)}
+.ce-if span{color:var(--amber)}
+.ce-then span{color:var(--text-blue)}
+.ce-row.active .ce-if span{color:var(--red);animation:blink 1s infinite}
+.output-list{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+.output-row{display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:3px;border:1px solid var(--panel-border);font-size:11px}
+.output-row.active{border-color:#223388;background:#080f20}
+.out-led{width:8px;height:8px;border-radius:50%;background:var(--led-off);flex-shrink:0}
+.out-led.on{background:var(--led-blue);box-shadow:0 0 4px var(--led-blue);animation:blink 0.4s infinite}
+.out-name{flex:1;color:var(--text-mid)}
+.out-name.on{color:var(--text-hi)}
+.out-status{font-size:10px;color:var(--text-dim)}
+.out-status.on{color:var(--text-blue)}
+.indicator-row{display:flex;gap:10px;padding:0 12px 10px;flex-wrap:wrap}
+.ind{display:flex;align-items:center;gap:5px}
+.ind-led{width:10px;height:10px;border-radius:50%;background:var(--led-off)}
+.ind-led.normal{background:var(--led-on);box-shadow:0 0 5px var(--led-on)}
+.ind-led.alarm{background:var(--led-alarm);box-shadow:0 0 5px var(--led-alarm);animation:blink 0.5s infinite}
+.ind-led.fault{background:var(--led-fault);box-shadow:0 0 5px var(--led-fault);animation:blink 1s infinite}
+.ind-led.ack{background:var(--led-ack);box-shadow:0 0 5px var(--led-ack)}
+.ind-led.sounder{background:var(--led-blue);box-shadow:0 0 5px var(--led-blue);animation:blink 0.4s infinite}
+.ind-led.evac{background:var(--led-alarm);box-shadow:0 0 5px var(--led-alarm);animation:blink 0.3s infinite}
+.ind-label{font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.btn-panel{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:0 12px 12px}
+.btn{background:var(--btn);border:1px solid var(--btn-border);color:var(--text-mid);font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:9px 6px;border-radius:3px;cursor:pointer;text-transform:uppercase;transition:all 0.1s;text-align:center;user-select:none}
+.btn:hover{background:var(--btn-h);color:var(--text-bright)}
+.btn:active{transform:scale(0.97)}
+.btn.red{border-color:#882020;color:#ff4444}.btn.red:hover{background:#200a0a}
+.btn.amber{border-color:#885500;color:var(--amber)}.btn.amber:hover{background:#1e1000}
+.btn.green{border-color:#226622;color:var(--green)}.btn.green:hover{background:#081508}
+.btn.blue{border-color:#224488;color:var(--blue)}.btn.blue:hover{background:#08101e}
+.btn:disabled{opacity:0.3;cursor:not-allowed;transform:none}
+.log-wrap{padding:0 12px 12px}
+.log-box{background:var(--panel-deep);border:1px solid var(--panel-border);border-radius:4px;height:88px;overflow-y:auto;padding:6px 8px}
+.log-entry{font-size:10px;line-height:1.6;border-bottom:1px solid #141a22;padding:1px 0}
+.log-entry.alarm{color:#ff6666}
+.log-entry.fault{color:#ffbb44}
+.log-entry.ok{color:#44cc66}
+.log-entry.info{color:#4477bb}
+.scenario-bar{background:var(--panel-deep);border-top:2px solid var(--panel-border);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.scn-label{font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;flex-shrink:0}
+.scn-btn{background:#0a1018;border:1px solid #1a2840;color:#3366aa;font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 9px;border-radius:3px;cursor:pointer;letter-spacing:1px;transition:all 0.1s}
+.scn-btn:hover{background:#111e30;color:#5599dd}
+
+/* ── C&E EDITOR ── */
+.ce-editor{padding:16px}
+.ce-editor-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.ce-editor-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;letter-spacing:3px;text-transform:uppercase;color:var(--text-bright)}
+.ce-add-btn{background:#0a1a0a;border:1px solid #226622;color:#44cc66;font-family:'Share Tech Mono',monospace;font-size:11px;padding:7px 14px;border-radius:3px;cursor:pointer;letter-spacing:1px;transition:all 0.1s}
+.ce-add-btn:hover{background:#112211}
+.ce-add-btn:disabled{opacity:0.3;cursor:not-allowed}
+.ce-table{width:100%;border-collapse:collapse;font-size:11px}
+.ce-table th{text-align:left;padding:7px 10px;color:var(--text-dim);letter-spacing:2px;font-size:10px;border-bottom:1px solid var(--panel-border);font-weight:400;text-transform:uppercase}
+.ce-table td{padding:7px 10px;border-bottom:1px solid #181f28;vertical-align:middle}
+.ce-table tr:hover td{background:#111820}
+.ce-table tr.disabled-row td{opacity:0.4}
+.ce-table tr.active-row td:first-child{border-left:2px solid var(--red)}
+.rule-if{color:var(--amber)}
+.rule-then{color:var(--text-blue)}
+.rule-delay{color:var(--cyan)}
+.ce-actions{display:flex;gap:4px}
+.ce-btn{font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 8px;border-radius:3px;cursor:pointer;border:1px solid;transition:all 0.1s;letter-spacing:1px}
+.ce-btn.edit{background:#0a1020;border-color:#224488;color:#4488cc}
+.ce-btn.edit:hover{background:#111830}
+.ce-btn.toggle{background:#1a1200;border-color:#664400;color:#cc8800}
+.ce-btn.toggle:hover{background:#221800}
+.ce-btn.toggle.enabled{background:#0a1a0a;border-color:#226622;color:#44cc66}
+.ce-btn.toggle.enabled:hover{background:#0f220f}
+.ce-btn.del{background:#1a0808;border-color:#662020;color:#cc4444}
+.ce-btn.del:hover{background:#220a0a}
+.ce-btn:disabled{opacity:0.3;cursor:not-allowed}
+.access-notice{display:flex;align-items:center;gap:8px;background:#0a1020;border:1px solid #1a2840;border-radius:4px;padding:10px 14px;font-size:11px;color:var(--text-mid);margin-bottom:12px}
+.access-notice.warn{background:#1a1000;border-color:#664400;color:#cc8800}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px}
+.modal-overlay.hidden{display:none}
+.modal{background:var(--panel-face);border:1px solid var(--panel-border);border-radius:6px;padding:24px;width:100%;max-width:460px}
+.modal-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;letter-spacing:3px;text-transform:uppercase;color:var(--text-bright);margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--panel-border)}
+.form-group{margin-bottom:14px}
+.form-label{font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:5px}
+.form-select,.form-input{width:100%;background:var(--panel-deep);border:1px solid var(--panel-border);color:var(--text-hi);font-family:'Share Tech Mono',monospace;font-size:12px;padding:8px 10px;border-radius:3px;outline:none}
+.form-select:focus,.form-input:focus{border-color:var(--blue)}
+.form-select option{background:var(--panel-face)}
+.output-checks{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+.check-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-mid);cursor:pointer;padding:5px 8px;border-radius:3px;border:1px solid var(--panel-border);transition:all 0.1s}
+.check-item:hover{background:#1a2030;color:var(--text-hi)}
+.check-item input{accent-color:var(--blue);width:14px;height:14px}
+.check-item.checked{background:#0a1020;border-color:#224488;color:var(--text-blue)}
+.modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
+.modal-btn{font-family:'Share Tech Mono',monospace;font-size:11px;padding:8px 16px;border-radius:3px;cursor:pointer;border:1px solid;letter-spacing:1px;transition:all 0.1s}
+.modal-btn.save{background:#0a1a0a;border-color:#226622;color:#44cc66}
+.modal-btn.save:hover{background:#112211}
+.modal-btn.cancel{background:var(--btn);border-color:var(--btn-border);color:var(--text-mid)}
+.modal-btn.cancel:hover{background:var(--btn-h)}
+.delay-row{display:flex;align-items:center;gap:10px}
+.delay-row input[type=range]{flex:1;accent-color:var(--blue)}
+.delay-val{font-size:12px;color:var(--cyan);min-width:40px}
 </style>
+</head>
+<body>
 
-<div class="panel-wrap">
-  <div class="panel-header">
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Educational Simulator</div>
+    <div class="login-title">FACP Access Control</div>
+    <div class="pin-display" id="pin-display">_ _ _ _</div>
+    <div class="keypad">
+      <button class="key" onclick="keyPress('1')">1</button>
+      <button class="key" onclick="keyPress('2')">2</button>
+      <button class="key" onclick="keyPress('3')">3</button>
+      <button class="key" onclick="keyPress('4')">4</button>
+      <button class="key" onclick="keyPress('5')">5</button>
+      <button class="key" onclick="keyPress('6')">6</button>
+      <button class="key" onclick="keyPress('7')">7</button>
+      <button class="key" onclick="keyPress('8')">8</button>
+      <button class="key" onclick="keyPress('9')">9</button>
+      <button class="key red" onclick="keyPress('C')">CLR</button>
+      <button class="key" onclick="keyPress('0')">0</button>
+      <button class="key green" onclick="keyPress('E')">ENT</button>
+    </div>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-hint">
+      Operator &nbsp;<span>0000</span> &nbsp;·&nbsp; Technician &nbsp;<span>1234</span> &nbsp;·&nbsp; Admin &nbsp;<span>9999</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="app-header">
     <div>
-      <div class="panel-title">FACP — Addressable Fire Alarm Control Panel</div>
-      <div class="panel-sub">SIMULATOR v1.0 · EDUCATIONAL USE · NOT FOR LIFE SAFETY</div>
+      <div class="app-title">Fire Alarm Control Panel — Simulator</div>
+      <div class="app-sub">ADDRESSABLE SYSTEM · EDUCATIONAL USE ONLY · NOT FOR LIFE SAFETY</div>
     </div>
-    <div id="clock" style="font-size:12px;color:var(--text-mid);text-align:right"></div>
-  </div>
-
-  <div class="main-display">
-    <div class="disp-row">
-      <span class="disp-label">SYSTEM</span>
-      <span class="disp-val" id="disp-system">NORMAL — ALL ZONES CLEAR</span>
-    </div>
-    <div class="disp-row">
-      <span class="disp-label">LAST EVENT</span>
-      <span class="disp-val" id="disp-last">--</span>
-    </div>
-    <div class="disp-row">
-      <span class="disp-label">ALARMS</span>
-      <span class="disp-val" id="disp-alarms" style="width:80px">0</span>
-      <span class="disp-label" style="width:60px">FAULTS</span>
-      <span class="disp-val" id="disp-faults" style="width:60px">0</span>
-      <span class="disp-label" style="width:60px">UNACK</span>
-      <span class="disp-val" id="disp-unack" style="width:60px">0</span>
+    <div class="header-right">
+      <div id="clock"></div>
+      <div class="user-info">
+        <div class="user-badge level-op" id="user-badge">OPERATOR</div>
+        <button class="logout-btn" onclick="doLogout()">LOGOUT</button>
+      </div>
     </div>
   </div>
 
-  <div class="indicator-row">
-    <div class="ind"><div class="ind-led" id="led-normal"></div><span class="ind-label">Normal</span></div>
-    <div class="ind"><div class="ind-led" id="led-alarm"></div><span class="ind-label">Alarm</span></div>
-    <div class="ind"><div class="ind-led" id="led-fault"></div><span class="ind-label">Fault</span></div>
-    <div class="ind"><div class="ind-led" id="led-ack"></div><span class="ind-label">Acknowledged</span></div>
-    <div class="ind"><div class="ind-led" id="led-sounder"></div><span class="ind-label">Sounders Active</span></div>
-    <div class="ind"><div class="ind-led" id="led-evac"></div><span class="ind-label">Evacuation</span></div>
+  <div class="tabs">
+    <div class="tab active" id="tab-panel" onclick="switchTab('panel')">Panel View</div>
+    <div class="tab locked" id="tab-ce" onclick="switchTab('ce')">C&amp;E Editor</div>
   </div>
 
-  <div class="sections">
-    <div class="section">
-      <div class="sec-title">Addressable Devices</div>
-      <div class="device-list" id="device-list"></div>
+  <!-- PANEL VIEW TAB -->
+  <div class="tab-content active" id="content-panel">
+    <div class="main-display">
+      <div class="disp-row">
+        <span class="disp-label">SYSTEM</span>
+        <span class="disp-val ok" id="disp-system">NORMAL — ALL ZONES CLEAR</span>
+      </div>
+      <div class="disp-row">
+        <span class="disp-label">LAST EVENT</span>
+        <span class="disp-val" id="disp-last">--</span>
+      </div>
+      <div class="disp-row">
+        <span class="disp-label">ALARMS</span>
+        <span class="disp-val" id="disp-alarms" style="width:60px">0</span>
+        <span class="disp-label" style="width:54px">FAULTS</span>
+        <span class="disp-val" id="disp-faults" style="width:54px">0</span>
+        <span class="disp-label" style="width:54px">UNACK</span>
+        <span class="disp-val" id="disp-unack" style="width:54px">0</span>
+      </div>
     </div>
-    <div class="section">
-      <div class="sec-title">Cause & Effect Rules</div>
-      <div class="ce-list" id="ce-list"></div>
-      <div class="sec-title" style="margin-top:10px">Outputs / Sounders</div>
-      <div id="output-list" style="display:flex;flex-direction:column;gap:4px;margin-top:6px"></div>
+
+    <div class="indicator-row">
+      <div class="ind"><div class="ind-led" id="led-normal"></div><span class="ind-label">Normal</span></div>
+      <div class="ind"><div class="ind-led" id="led-alarm"></div><span class="ind-label">Alarm</span></div>
+      <div class="ind"><div class="ind-led" id="led-fault"></div><span class="ind-label">Fault</span></div>
+      <div class="ind"><div class="ind-led" id="led-ack"></div><span class="ind-label">Acknowledged</span></div>
+      <div class="ind"><div class="ind-led" id="led-sounder"></div><span class="ind-label">Sounders Active</span></div>
+      <div class="ind"><div class="ind-led" id="led-evac"></div><span class="ind-label">Evacuation</span></div>
+    </div>
+
+    <div class="sections">
+      <div class="section">
+        <div class="sec-title">Addressable Devices</div>
+        <div class="device-list" id="device-list"></div>
+      </div>
+      <div class="section">
+        <div class="sec-title">Active C&amp;E Rules</div>
+        <div class="ce-list" id="ce-list-panel"></div>
+        <div class="sec-title" style="margin-top:10px">Outputs / Sounders</div>
+        <div class="output-list" id="output-list"></div>
+      </div>
+    </div>
+
+    <div class="btn-panel">
+      <button class="btn amber" id="btn-ack" onclick="doAck()">ACKNOWLEDGE</button>
+      <button class="btn red" id="btn-reset" onclick="doReset()">RESET</button>
+      <button class="btn blue" id="btn-silence" onclick="doSilenceSounders()">SILENCE SOUNDERS</button>
+      <button class="btn green" id="btn-evac" onclick="doEvacuate()">EVACUATE</button>
+      <button class="btn" id="btn-disable" onclick="doDisableCycle()">DISABLE OUTPUT</button>
+      <button class="btn" id="btn-test" onclick="doTestMode()">TEST MODE</button>
+    </div>
+
+    <div class="log-wrap">
+      <div class="sec-title" style="padding:0 0 6px">Event Log</div>
+      <div class="log-box" id="log-box"></div>
+    </div>
+
+    <div class="scenario-bar">
+      <span class="scn-label">Scenarios:</span>
+      <button class="scn-btn" onclick="scenario('smoke_l1')">Smoke — L1 Lobby</button>
+      <button class="scn-btn" onclick="scenario('heat_kitchen')">Heat — Kitchen</button>
+      <button class="scn-btn" onclick="scenario('mcp_stairwell')">MCP — Stairwell</button>
+      <button class="scn-btn" onclick="scenario('fault_loop')">Loop Fault</button>
+      <button class="scn-btn" onclick="scenario('multi_zone')">Multi-Zone Alarm</button>
+      <button class="scn-btn" onclick="scenario('clear')">Clear All</button>
     </div>
   </div>
 
-  <div class="btn-panel">
-    <button class="btn amber tooltip" onclick="doAck()" data-tip="Silence panel buzzer, acknowledge active events">ACKNOWLEDGE</button>
-    <button class="btn red tooltip" onclick="doReset()" data-tip="Reset panel — clears all alarms if no active trigger">RESET</button>
-    <button class="btn blue tooltip" onclick="doSilenceSounders()" data-tip="Silence output sounders temporarily">SILENCE SOUNDERS</button>
-    <button class="btn green tooltip" onclick="doEvacuate()" data-tip="Manually trigger full evacuation">EVACUATE</button>
-    <button class="btn tooltip" onclick="doDisableSounder()" data-tip="Disable/re-enable a selected output">DISABLE OUTPUT</button>
-    <button class="btn tooltip" onclick="doTestMode()" data-tip="Toggle walk test mode — alarms logged, sounders suppressed" id="btn-test">TEST MODE</button>
+  <!-- C&E EDITOR TAB -->
+  <div class="tab-content" id="content-ce">
+    <div class="ce-editor">
+      <div class="ce-editor-header">
+        <div class="ce-editor-title">Cause &amp; Effect Rule Editor</div>
+        <button class="ce-add-btn" id="btn-add-rule" onclick="openAddModal()" disabled>+ ADD RULE</button>
+      </div>
+      <div class="access-notice" id="ce-access-notice">
+        Loading access level...
+      </div>
+      <table class="ce-table" id="ce-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>IF — Trigger</th>
+            <th>THEN — Outputs</th>
+            <th>Delay</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ce-tbody"></tbody>
+      </table>
+    </div>
   </div>
+</div>
 
-  <div class="log-wrap">
-    <div class="sec-title" style="padding:0 0 6px">Event Log</div>
-    <div class="log-box" id="log-box"></div>
-  </div>
-
-  <div class="scenario-bar">
-    <span class="scn-label">Scenarios:</span>
-    <button class="scn-btn" onclick="scenario('smoke_l1')">Smoke — L1 Lobby</button>
-    <button class="scn-btn" onclick="scenario('heat_kitchen')">Heat — Kitchen</button>
-    <button class="scn-btn" onclick="scenario('mcp_stairwell')">MCP — Stairwell</button>
-    <button class="scn-btn" onclick="scenario('fault_loop')">Loop Fault</button>
-    <button class="scn-btn" onclick="scenario('multi_zone')">Multi-Zone Alarm</button>
-    <button class="scn-btn" onclick="scenario('clear')">Clear All</button>
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay hidden" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Add C&amp;E Rule</div>
+    <div class="form-group">
+      <label class="form-label">IF — Zone Alarm Trigger</label>
+      <select class="form-select" id="form-zone">
+        <option value="1">Zone 1 — L1-Lobby</option>
+        <option value="2">Zone 2 — L1-Kitchen</option>
+        <option value="3">Zone 3 — L2-IT</option>
+        <option value="4">Zone 4 — Stairwell-A</option>
+        <option value="5">Zone 5 — L2-East</option>
+        <option value="6">Zone 6 — Basement</option>
+        <option value="7">Zone 7 — L3-Office</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">THEN — Activate Outputs</label>
+      <div class="output-checks" id="output-checks"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Delay Before Activation (seconds)</label>
+      <div class="delay-row">
+        <input type="range" min="0" max="60" value="0" id="form-delay" oninput="document.getElementById('form-delay-val').textContent=this.value+'s'">
+        <span class="delay-val" id="form-delay-val">0s</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal()">CANCEL</button>
+      <button class="modal-btn save" onclick="saveRule()">SAVE RULE</button>
+    </div>
   </div>
 </div>
 
 <script>
+// ── DATA ──
+const PINS = {operator:'0000', technician:'1234', admin:'9999'};
+let currentUser = null;
+let pinBuffer = '';
+let editingRuleId = null;
+
+const ZONES = [
+  {id:1,name:'L1-Lobby'},{id:2,name:'L1-Kitchen'},{id:3,name:'L2-IT'},
+  {id:4,name:'Stairwell-A'},{id:5,name:'L2-East'},{id:6,name:'Basement'},{id:7,name:'L3-Office'}
+];
+
 const DEVICES = [
-  {addr:'001',type:'SD',name:'Lobby Smoke Detector',zone:1,zoneName:'L1-Lobby',state:'normal'},
-  {addr:'002',type:'SD',name:'Reception Smoke Detector',zone:1,zoneName:'L1-Lobby',state:'normal'},
-  {addr:'003',type:'HD',name:'Kitchen Heat Detector',zone:2,zoneName:'L1-Kitchen',state:'normal'},
-  {addr:'004',type:'SD',name:'Server Room Smoke',zone:3,zoneName:'L2-IT',state:'normal'},
-  {addr:'005',type:'MCP',name:'Stairwell A MCP',zone:4,zoneName:'Stairwell-A',state:'normal'},
-  {addr:'006',type:'MCP',name:'L1 Exit MCP',zone:1,zoneName:'L1-Lobby',state:'normal'},
-  {addr:'007',type:'SD',name:'Corridor L2 East',zone:5,zoneName:'L2-East',state:'normal'},
-  {addr:'008',type:'SD',name:'Corridor L2 West',zone:5,zoneName:'L2-East',state:'normal'},
-  {addr:'009',type:'HD',name:'Boiler Room Heat',zone:6,zoneName:'Basement',state:'normal'},
-  {addr:'010',type:'SD',name:'Basement Store',zone:6,zoneName:'Basement',state:'normal'},
-  {addr:'011',type:'MCP',name:'Basement Exit MCP',zone:6,zoneName:'Basement',state:'normal'},
-  {addr:'012',type:'SD',name:'L3 Office A Smoke',zone:7,zoneName:'L3-Office',state:'normal'},
+  {addr:'001',type:'SD',name:'Lobby Smoke Detector',zone:1,state:'normal'},
+  {addr:'002',type:'SD',name:'Reception Smoke Detector',zone:1,state:'normal'},
+  {addr:'003',type:'HD',name:'Kitchen Heat Detector',zone:2,state:'normal'},
+  {addr:'004',type:'SD',name:'Server Room Smoke',zone:3,state:'normal'},
+  {addr:'005',type:'MCP',name:'Stairwell A MCP',zone:4,state:'normal'},
+  {addr:'006',type:'MCP',name:'L1 Exit MCP',zone:1,state:'normal'},
+  {addr:'007',type:'SD',name:'Corridor L2 East',zone:5,state:'normal'},
+  {addr:'008',type:'SD',name:'Corridor L2 West',zone:5,state:'normal'},
+  {addr:'009',type:'HD',name:'Boiler Room Heat',zone:6,state:'normal'},
+  {addr:'010',type:'SD',name:'Basement Store',zone:6,state:'normal'},
+  {addr:'011',type:'MCP',name:'Basement Exit MCP',zone:6,state:'normal'},
+  {addr:'012',type:'SD',name:'L3 Office A Smoke',zone:7,state:'normal'},
 ];
 
 const OUTPUTS = [
@@ -199,59 +411,139 @@ const OUTPUTS = [
   {id:'R3',name:'Relay — Door Holders',state:'off',disabled:false},
 ];
 
-const CE_RULES = [
-  {id:'CE1',ifZone:1,ifZoneName:'L1-Lobby',action:'Activate S1 + S3 + R3',outputs:['S1','S3','R3'],active:false},
-  {id:'CE2',ifZone:2,ifZoneName:'L1-Kitchen',action:'Activate S1 + S2 + S3 + R2',outputs:['S1','S2','S3','R2'],active:false},
-  {id:'CE3',ifZone:4,ifZoneName:'Stairwell-A',action:'Activate S3 + R1 (Lift Recall)',outputs:['S3','R1'],active:false},
-  {id:'CE4',ifZone:6,ifZoneName:'Basement',action:'Activate S3 + R1 + R2',outputs:['S3','R1','R2'],active:false},
-  {id:'CE5',ifZone:3,ifZoneName:'L2-IT',action:'Activate S3 + R2 + R3',outputs:['S3','R2','R3'],active:false},
-  {id:'CE6',ifZone:5,ifZoneName:'L2-East',action:'Activate S3',outputs:['S3'],active:false},
-  {id:'CE7',ifZone:7,ifZoneName:'L3-Office',action:'Activate S3 + R3',outputs:['S3','R3'],active:false},
+let CE_RULES = [
+  {id:'CE1',ifZone:1,ifZoneName:'L1-Lobby',outputs:['S1','S3','R3'],delay:0,active:false,enabled:true},
+  {id:'CE2',ifZone:2,ifZoneName:'L1-Kitchen',outputs:['S1','S2','S3','R2'],delay:0,active:false,enabled:true},
+  {id:'CE3',ifZone:4,ifZoneName:'Stairwell-A',outputs:['S3','R1'],delay:0,active:false,enabled:true},
+  {id:'CE4',ifZone:6,ifZoneName:'Basement',outputs:['S3','R1','R2'],delay:0,active:false,enabled:true},
+  {id:'CE5',ifZone:3,ifZoneName:'L2-IT',outputs:['S3','R2','R3'],delay:0,active:false,enabled:true},
+  {id:'CE6',ifZone:5,ifZoneName:'L2-East',outputs:['S3'],delay:0,active:false,enabled:true},
+  {id:'CE7',ifZone:7,ifZoneName:'L3-Office',outputs:['S3','R3'],delay:30,active:false,enabled:true},
 ];
 
-let panelState = {alarms:0,faults:0,unack:0,soundersSilenced:false,evacuating:false,testMode:false,buzzing:false};
+let panelState = {soundersSilenced:false,evacuating:false,testMode:false,ruleCounter:8};
 let logEntries = [];
+let delayTimers = {};
 
-function ts(){
-  const n=new Date();
-  return n.toTimeString().slice(0,8);
+// ── LOGIN ──
+function keyPress(k){
+  const err = document.getElementById('login-err');
+  err.textContent = '';
+  if(k==='C'){pinBuffer='';updatePinDisplay();return;}
+  if(k==='E'){checkPin();return;}
+  if(pinBuffer.length<4) pinBuffer+=k;
+  updatePinDisplay();
+  if(pinBuffer.length===4) setTimeout(checkPin,200);
 }
 
-function addLog(msg,type='info'){
-  logEntries.unshift({msg,type,time:ts()});
-  if(logEntries.length>60)logEntries.pop();
-  renderLog();
+function updatePinDisplay(){
+  const d = document.getElementById('pin-display');
+  const shown = pinBuffer.replace(/./g,'●');
+  const pad = '_ '.repeat(4-pinBuffer.length).trim();
+  d.textContent = shown + (pinBuffer.length<4?' '+pad:'');
 }
 
-function renderLog(){
-  const box=document.getElementById('log-box');
-  box.innerHTML=logEntries.map(e=>`<div class="log-entry ${e.type}">[${e.time}] ${e.msg}</div>`).join('');
+function checkPin(){
+  const err = document.getElementById('login-err');
+  if(pinBuffer===PINS.admin) loginAs('admin');
+  else if(pinBuffer===PINS.technician) loginAs('technician');
+  else if(pinBuffer===PINS.operator) loginAs('operator');
+  else{err.textContent='INVALID PIN — ACCESS DENIED';pinBuffer='';updatePinDisplay();}
+}
+
+function loginAs(level){
+  currentUser=level;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  const badge=document.getElementById('user-badge');
+  if(level==='admin'){badge.textContent='ADMIN';badge.className='user-badge level-admin';}
+  else if(level==='technician'){badge.textContent='TECHNICIAN';badge.className='user-badge level-tech';}
+  else{badge.textContent='OPERATOR';badge.className='user-badge level-op';}
+  setupTabAccess();
+  renderAll();
+  addLog(`ACCESS: ${level.toUpperCase()} logged in`,'ok');
+}
+
+function doLogout(){
+  currentUser=null;pinBuffer='';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('pin-display').textContent='_ _ _ _';
+  document.getElementById('login-err').textContent='';
+  switchTab('panel');
+}
+
+function setupTabAccess(){
+  const ceTab=document.getElementById('tab-ce');
+  if(currentUser==='technician'||currentUser==='admin'){
+    ceTab.classList.remove('locked');
+  } else {
+    ceTab.classList.add('locked');
+  }
+  document.getElementById('btn-add-rule').disabled=(currentUser!=='admin');
+  updateCEAccessNotice();
+  updateButtonAccess();
+}
+
+function updateButtonAccess(){
+  const isOp=(currentUser==='operator');
+  document.getElementById('btn-evac').disabled=isOp;
+  document.getElementById('btn-disable').disabled=isOp;
+  document.getElementById('btn-test').disabled=isOp;
+}
+
+function updateCEAccessNotice(){
+  const el=document.getElementById('ce-access-notice');
+  if(currentUser==='admin'){
+    el.className='access-notice';
+    el.innerHTML='ADMIN ACCESS — Full edit permissions: Add, Edit, Delete, Enable/Disable rules.';
+  } else if(currentUser==='technician'){
+    el.className='access-notice warn';
+    el.innerHTML='TECHNICIAN ACCESS — View and Enable/Disable rules only. Login as Admin to add, edit or delete rules.';
+  } else {
+    el.className='access-notice warn';
+    el.innerHTML='OPERATOR ACCESS — Read only. Contact Technician or Admin to modify rules.';
+  }
+}
+
+// ── TABS ──
+function switchTab(t){
+  if(t==='ce'&&document.getElementById('tab-ce').classList.contains('locked')) return;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  document.getElementById('content-'+t).classList.add('active');
+  if(t==='ce') renderCEEditor();
+}
+
+// ── RENDER ──
+function renderAll(){
+  renderDevices();renderCEPanel();renderOutputs();updateIndicators();
 }
 
 function renderDevices(){
   const list=document.getElementById('device-list');
   list.innerHTML=DEVICES.map((d,i)=>{
-    let ledClass='',statusClass='normal',statusText='NORMAL';
-    if(d.state==='alarm'){ledClass='alarm';statusClass='alarm';statusText='ALARM';}
-    else if(d.state==='fault'){ledClass='fault';statusClass='fault';statusText='FAULT';}
-    else if(d.state==='ack'){ledClass='on';statusClass='ack';statusText='ACK';}
-    else{ledClass='';statusClass='normal';statusText='NRML';}
-    const rowClass=d.state==='alarm'?'device-row alarm-state':d.state==='fault'?'device-row fault-state':'device-row';
-    return `<div class="${rowClass}" onclick="triggerDevice(${i})" title="Click to simulate alarm on this device">
-      <div class="dev-led ${ledClass}"></div>
+    let lc='',sc='normal',st='NRML';
+    if(d.state==='alarm'){lc='alarm';sc='alarm';st='ALARM';}
+    else if(d.state==='fault'){lc='fault';sc='fault';st='FAULT';}
+    else if(d.state==='ack'){lc='on';sc='ack';st='ACK';}
+    const rc=d.state==='alarm'?'device-row alarm-state':d.state==='fault'?'device-row fault-state':'device-row';
+    return `<div class="${rc}" onclick="triggerDevice(${i})" title="Click to simulate alarm/fault">
+      <div class="dev-led ${lc}"></div>
       <span class="dev-addr">${d.addr}</span>
       <span class="dev-type">${d.type}</span>
       <span class="dev-name">${d.name}<span class="zone-badge">Z${d.zone}</span></span>
-      <span class="dev-status ${statusClass}">${statusText}</span>
+      <span class="dev-status ${sc}">${st}</span>
     </div>`;
   }).join('');
 }
 
-function renderCE(){
-  const list=document.getElementById('ce-list');
-  list.innerHTML=CE_RULES.map(r=>`<div class="ce-row ${r.active?'active':''}">
-    <div class="ce-if">IF <span>Zone ${r.ifZone} (${r.ifZoneName})</span> ALARM</div>
-    <div class="ce-then">THEN <span>${r.action}</span></div>
+function renderCEPanel(){
+  const list=document.getElementById('ce-list-panel');
+  list.innerHTML=CE_RULES.filter(r=>r.enabled).map(r=>`<div class="ce-row ${r.active?'active':''} ${!r.enabled?'disabled-rule':''}">
+    <div class="ce-if">IF <span>Zone ${r.ifZone} (${r.ifZoneName})</span> ALARM${r.delay>0?' [+'+r.delay+'s]':''}</div>
+    <div class="ce-then">THEN <span>${r.outputs.join(', ')}</span></div>
   </div>`).join('');
 }
 
@@ -260,10 +552,34 @@ function renderOutputs(){
   list.innerHTML=OUTPUTS.map(o=>`<div class="output-row ${o.state==='on'&&!o.disabled?'active':''}">
     <div class="out-led ${o.state==='on'&&!o.disabled?'on':''}"></div>
     <span class="out-name ${o.state==='on'&&!o.disabled?'on':''}">${o.id}: ${o.name}</span>
-    <span class="out-status ${o.state==='on'&&!o.disabled?'on':''}">${o.disabled?'DISABLED':o.state==='on'?'ACTIVE':'off'}</span>
+    <span class="out-status ${o.state==='on'&&!o.disabled?'on':''}">${o.disabled?'DISAB':o.state==='on'?'ACTV':'off'}</span>
   </div>`).join('');
 }
 
+function renderCEEditor(){
+  const tbody=document.getElementById('ce-tbody');
+  tbody.innerHTML=CE_RULES.map(r=>{
+    const canEdit=(currentUser==='admin');
+    const canToggle=(currentUser==='admin'||currentUser==='technician');
+    const outputs=r.outputs.join(', ');
+    const delayStr=r.delay>0?`<span class="rule-delay">+${r.delay}s</span>`:'<span style="color:var(--text-dim)">none</span>';
+    const statusStr=r.enabled?'<span style="color:var(--green);font-size:10px">ENABLED</span>':'<span style="color:var(--text-dim);font-size:10px">DISABLED</span>';
+    return `<tr class="${r.active?'active-row':''} ${!r.enabled?'disabled-row':''}">
+      <td style="color:var(--text-dim);font-size:10px">${r.id}</td>
+      <td class="rule-if">Zone ${r.ifZone} — ${r.ifZoneName}</td>
+      <td class="rule-then">${outputs}</td>
+      <td>${delayStr}</td>
+      <td>${statusStr}</td>
+      <td><div class="ce-actions">
+        <button class="ce-btn edit" onclick="openEditModal('${r.id}')" ${canEdit?'':'disabled'}>EDIT</button>
+        <button class="ce-btn toggle ${r.enabled?'enabled':''}" onclick="toggleRule('${r.id}')" ${canToggle?'':'disabled'}>${r.enabled?'DISAB':'ENABL'}</button>
+        <button class="ce-btn del" onclick="deleteRule('${r.id}')" ${canEdit?'':'disabled'}>DEL</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── INDICATORS ──
 function updateIndicators(){
   const hasAlarm=DEVICES.some(d=>d.state==='alarm');
   const hasFault=DEVICES.some(d=>d.state==='fault');
@@ -274,62 +590,74 @@ function updateIndicators(){
   setLed('led-fault',hasFault?'fault':'');
   setLed('led-ack',hasAck?'ack':'');
   setLed('led-sounder',hasSounder?'sounder':'');
-  setLed('led-evac',panelState.evacuating?'alarm':'');
-  panelState.alarms=DEVICES.filter(d=>d.state==='alarm').length;
-  panelState.faults=DEVICES.filter(d=>d.state==='fault').length;
-  panelState.unack=DEVICES.filter(d=>d.state==='alarm').length;
-  document.getElementById('disp-alarms').textContent=panelState.alarms;
-  document.getElementById('disp-faults').textContent=panelState.faults;
-  document.getElementById('disp-unack').textContent=panelState.unack;
+  setLed('led-evac',panelState.evacuating?'evac':'');
+  const al=DEVICES.filter(d=>d.state==='alarm').length;
+  const fl=DEVICES.filter(d=>d.state==='fault').length;
+  document.getElementById('disp-alarms').textContent=al;
+  document.getElementById('disp-faults').textContent=fl;
+  document.getElementById('disp-unack').textContent=al;
   const sys=document.getElementById('disp-system');
   if(panelState.evacuating){sys.textContent='** EVACUATION IN PROGRESS **';sys.className='disp-val alarm';}
-  else if(panelState.alarms>0){sys.textContent=`ALARM — ${panelState.alarms} DEVICE(S) ACTIVE`;sys.className='disp-val alarm';}
-  else if(panelState.faults>0){sys.textContent=`FAULT — ${panelState.faults} DEVICE(S)`;sys.className='disp-val fault';}
+  else if(al>0){sys.textContent='ALARM — '+al+' DEVICE(S) ACTIVE';sys.className='disp-val alarm';}
+  else if(fl>0){sys.textContent='FAULT — '+fl+' DEVICE(S)';sys.className='disp-val fault';}
   else{sys.textContent='NORMAL — ALL ZONES CLEAR';sys.className='disp-val ok';}
 }
 
 function setLed(id,cls){
   const el=document.getElementById(id);
-  el.className='ind-led';
-  if(cls)el.classList.add(cls);
+  el.className='ind-led';if(cls)el.classList.add(cls);
 }
 
+// ── DEVICE TRIGGER ──
 function triggerDevice(i){
   const d=DEVICES[i];
   if(d.state==='normal'||d.state==='ack'){
     if(panelState.testMode){
-      addLog(`[TEST] Device ${d.addr} ${d.name} — alarm simulated (test mode, sounders suppressed)`,'info');
+      addLog('[TEST] Device '+d.addr+' '+d.name+' — alarm simulated (sounders suppressed)','info');
       d.state='ack';
     } else {
       d.state='alarm';
-      addLog(`ALARM: Device ${d.addr} (${d.type}) ${d.name} — Zone ${d.zone} ${d.zoneName}`,'alarm');
-      document.getElementById('disp-last').textContent=`${d.addr} ${d.name} Z${d.zone}`;
+      addLog('ALARM: Device '+d.addr+' ('+d.type+') '+d.name+' — Zone '+d.zone+' '+getZoneName(d.zone),'alarm');
+      document.getElementById('disp-last').textContent=d.addr+' '+d.name+' Z'+d.zone;
       applyCE(d.zone);
     }
   } else if(d.state==='alarm'){
-    addLog(`INFO: Device ${d.addr} manually returned to normal`,'ok');
     d.state='normal';
+    addLog('INFO: Device '+d.addr+' manually returned to normal','ok');
     recheckCE();
   } else if(d.state==='fault'){
     d.state='normal';
-    addLog(`FAULT CLEARED: Device ${d.addr} ${d.name}`,'ok');
+    addLog('FAULT CLEARED: Device '+d.addr+' '+d.name,'ok');
   }
-  renderDevices();
-  updateIndicators();
-  renderCE();
-  renderOutputs();
+  renderAll();
 }
 
+function getZoneName(z){const zn=ZONES.find(x=>x.id===z);return zn?zn.name:'';}
+
+// ── CAUSE & EFFECT ──
 function applyCE(zone){
   CE_RULES.forEach(r=>{
-    if(r.ifZone===zone&&!r.active){
-      r.active=true;
-      r.outputs.forEach(oid=>{
-        const o=OUTPUTS.find(x=>x.id===oid);
-        if(o&&!o.disabled&&!panelState.soundersSilenced){o.state='on';addLog(`OUTPUT ON: ${oid} — ${o.name}`,'info');}
-      });
+    if(r.ifZone===zone&&!r.active&&r.enabled){
+      if(r.delay>0){
+        addLog('C&E: Rule '+r.id+' — delay '+r.delay+'s before outputs activate','info');
+        delayTimers[r.id]=setTimeout(()=>{activateRule(r);},r.delay*1000);
+      } else {
+        activateRule(r);
+      }
     }
   });
+}
+
+function activateRule(r){
+  r.active=true;
+  r.outputs.forEach(oid=>{
+    const o=OUTPUTS.find(x=>x.id===oid);
+    if(o&&!o.disabled&&!panelState.soundersSilenced){
+      o.state='on';
+      addLog('OUTPUT ON: '+oid+' — '+o.name,'info');
+    }
+  });
+  renderAll();
 }
 
 function recheckCE(){
@@ -337,6 +665,7 @@ function recheckCE(){
     const zoneAlarm=DEVICES.some(d=>d.zone===r.ifZone&&d.state==='alarm');
     if(!zoneAlarm&&r.active){
       r.active=false;
+      if(delayTimers[r.id]){clearTimeout(delayTimers[r.id]);delete delayTimers[r.id];}
       r.outputs.forEach(oid=>{
         const still=CE_RULES.some(x=>x.active&&x.outputs.includes(oid)&&x.id!==r.id);
         if(!still){const o=OUTPUTS.find(x=>x.id===oid);if(o)o.state='off';}
@@ -345,29 +674,32 @@ function recheckCE(){
   });
 }
 
+// ── PANEL BUTTONS ──
 function doAck(){
   const alarms=DEVICES.filter(d=>d.state==='alarm');
-  if(alarms.length===0&&panelState.faults===0){addLog('ACK: No active events to acknowledge','info');return;}
-  alarms.forEach(d=>{d.state='ack';addLog(`ACK: Device ${d.addr} ${d.name} acknowledged`,'info');});
+  if(alarms.length===0){addLog('ACK: No active events','info');return;}
+  alarms.forEach(d=>{d.state='ack';addLog('ACK: Device '+d.addr+' '+d.name,'info');});
   addLog('PANEL: Buzzer silenced — events acknowledged','ok');
-  renderDevices();updateIndicators();
+  renderAll();
 }
 
 function doReset(){
-  const activeAlarms=DEVICES.filter(d=>d.state==='alarm');
-  if(activeAlarms.length>0){addLog('RESET DENIED: Active alarms present — clear source first','fault');return;}
+  const active=DEVICES.filter(d=>d.state==='alarm');
+  if(active.length>0){addLog('RESET DENIED: Active alarms present — clear source first','fault');return;}
   DEVICES.forEach(d=>{if(d.state==='ack')d.state='normal';});
   CE_RULES.forEach(r=>{r.active=false;});
+  Object.values(delayTimers).forEach(t=>clearTimeout(t));
+  delayTimers={};
   OUTPUTS.forEach(o=>{o.state='off';});
   panelState.evacuating=false;panelState.soundersSilenced=false;
-  addLog('PANEL: System reset — all events cleared','ok');
   document.getElementById('disp-last').textContent='--';
-  renderDevices();updateIndicators();renderCE();renderOutputs();
+  addLog('PANEL: System reset — all events cleared','ok');
+  renderAll();
 }
 
 function doSilenceSounders(){
   panelState.soundersSilenced=!panelState.soundersSilenced;
-  addLog(panelState.soundersSilenced?'SOUNDERS: All outputs silenced (outputs still energised)':'SOUNDERS: Silence cancelled — sounders restored',panelState.soundersSilenced?'fault':'ok');
+  addLog(panelState.soundersSilenced?'SOUNDERS: All outputs silenced':'SOUNDERS: Silence cancelled — sounders restored',panelState.soundersSilenced?'fault':'ok');
   updateIndicators();renderOutputs();
 }
 
@@ -377,27 +709,32 @@ function doEvacuate(){
   OUTPUTS.forEach(o=>{if(!o.disabled)o.state='on';});
   CE_RULES.forEach(r=>{r.active=true;});
   addLog('EVACUATION: Manual evacuation triggered — all outputs activated','alarm');
-  renderCE();renderOutputs();updateIndicators();
+  renderAll();
 }
 
-function doDisableSounder(){
-  const idx=OUTPUTS.findIndex(o=>!o.disabled);
-  if(idx<0){OUTPUTS.forEach(o=>o.disabled=false);addLog('OUTPUTS: All outputs re-enabled','ok');}
-  else{OUTPUTS[idx].disabled=!OUTPUTS[idx].disabled;addLog(`OUTPUT ${OUTPUTS[idx].disabled?'DISABLED':'ENABLED'}: ${OUTPUTS[idx].name}`,'fault');}
+let disableIdx=0;
+function doDisableCycle(){
+  const o=OUTPUTS[disableIdx%OUTPUTS.length];
+  o.disabled=!o.disabled;
+  addLog('OUTPUT '+(o.disabled?'DISABLED':'ENABLED')+': '+o.id+' — '+o.name,o.disabled?'fault':'ok');
+  disableIdx++;
   renderOutputs();updateIndicators();
 }
 
 function doTestMode(){
   panelState.testMode=!panelState.testMode;
-  document.getElementById('btn-test').textContent=panelState.testMode?'TEST: ON':'TEST MODE';
-  document.getElementById('btn-test').style.color=panelState.testMode?'#44cc66':'';
-  addLog(panelState.testMode?'TEST MODE: Active — alarms logged, sounders suppressed':'TEST MODE: Deactivated',panelState.testMode?'info':'ok');
+  const btn=document.getElementById('btn-test');
+  btn.textContent=panelState.testMode?'TEST: ON':'TEST MODE';
+  btn.style.color=panelState.testMode?'var(--green)':'';
+  addLog(panelState.testMode?'TEST MODE: Active — sounders suppressed':'TEST MODE: Deactivated',panelState.testMode?'info':'ok');
 }
 
+// ── SCENARIOS ──
 function scenario(s){
   if(s==='clear'){
     DEVICES.forEach(d=>d.state='normal');
     CE_RULES.forEach(r=>r.active=false);
+    Object.values(delayTimers).forEach(t=>clearTimeout(t));delayTimers={};
     OUTPUTS.forEach(o=>{o.state='off';o.disabled=false;});
     panelState.evacuating=false;panelState.soundersSilenced=false;panelState.testMode=false;
     document.getElementById('btn-test').textContent='TEST MODE';
@@ -406,17 +743,17 @@ function scenario(s){
     addLog('SCENARIO: All conditions cleared — system normal','ok');
   } else if(s==='smoke_l1'){
     DEVICES.find(d=>d.addr==='001').state='alarm';
-    addLog('SCENARIO: Smoke detected — Lobby Smoke Detector (001) Zone 1','alarm');
+    addLog('SCENARIO: Smoke — Lobby Smoke Detector (001) Zone 1','alarm');
     document.getElementById('disp-last').textContent='001 Lobby Smoke Detector Z1';
     applyCE(1);
   } else if(s==='heat_kitchen'){
     DEVICES.find(d=>d.addr==='003').state='alarm';
-    addLog('SCENARIO: Heat detected — Kitchen Heat Detector (003) Zone 2','alarm');
+    addLog('SCENARIO: Heat — Kitchen Heat Detector (003) Zone 2','alarm');
     document.getElementById('disp-last').textContent='003 Kitchen Heat Detector Z2';
     applyCE(2);
   } else if(s==='mcp_stairwell'){
     DEVICES.find(d=>d.addr==='005').state='alarm';
-    addLog('SCENARIO: Manual Call Point activated — Stairwell A (005) Zone 4','alarm');
+    addLog('SCENARIO: MCP — Stairwell A (005) Zone 4','alarm');
     document.getElementById('disp-last').textContent='005 Stairwell A MCP Z4';
     applyCE(4);
   } else if(s==='fault_loop'){
@@ -432,16 +769,98 @@ function scenario(s){
     document.getElementById('disp-last').textContent='Multi-zone: Z1 Z3 Z7';
     applyCE(1);applyCE(3);applyCE(7);
   }
-  renderDevices();updateIndicators();renderCE();renderOutputs();
+  renderAll();
 }
 
+// ── C&E EDITOR ACTIONS ──
+function toggleRule(id){
+  const r=CE_RULES.find(x=>x.id===id);
+  if(!r)return;
+  r.enabled=!r.enabled;
+  addLog('RULE '+(r.enabled?'ENABLED':'DISABLED')+': '+r.id+' Zone '+r.ifZone+' — '+r.ifZoneName,'info');
+  renderCEEditor();renderCEPanel();
+}
+
+function deleteRule(id){
+  if(!confirm('Delete rule '+id+'? This cannot be undone.'))return;
+  const idx=CE_RULES.findIndex(x=>x.id===id);
+  if(idx<0)return;
+  addLog('RULE DELETED: '+id,'fault');
+  CE_RULES.splice(idx,1);
+  renderCEEditor();renderCEPanel();
+}
+
+function openAddModal(){
+  editingRuleId=null;
+  document.getElementById('modal-title').textContent='Add C&E Rule';
+  document.getElementById('form-zone').value='1';
+  document.getElementById('form-delay').value='0';
+  document.getElementById('form-delay-val').textContent='0s';
+  buildOutputChecks([]);
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function openEditModal(id){
+  const r=CE_RULES.find(x=>x.id===id);
+  if(!r)return;
+  editingRuleId=id;
+  document.getElementById('modal-title').textContent='Edit Rule — '+id;
+  document.getElementById('form-zone').value=r.ifZone;
+  document.getElementById('form-delay').value=r.delay;
+  document.getElementById('form-delay-val').textContent=r.delay+'s';
+  buildOutputChecks(r.outputs);
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function buildOutputChecks(selected){
+  const wrap=document.getElementById('output-checks');
+  wrap.innerHTML=OUTPUTS.map(o=>`
+    <label class="check-item ${selected.includes(o.id)?'checked':''}">
+      <input type="checkbox" value="${o.id}" ${selected.includes(o.id)?'checked':''} onchange="this.closest('.check-item').classList.toggle('checked',this.checked)">
+      ${o.id}: ${o.name.split('—')[0].trim()}
+    </label>`).join('');
+}
+
+function saveRule(){
+  const zone=parseInt(document.getElementById('form-zone').value);
+  const zn=ZONES.find(z=>z.id===zone);
+  const delay=parseInt(document.getElementById('form-delay').value);
+  const outputs=[...document.querySelectorAll('#output-checks input:checked')].map(x=>x.value);
+  if(outputs.length===0){alert('Please select at least one output.');return;}
+  if(editingRuleId){
+    const r=CE_RULES.find(x=>x.id===editingRuleId);
+    r.ifZone=zone;r.ifZoneName=zn.name;r.outputs=outputs;r.delay=delay;
+    addLog('RULE EDITED: '+editingRuleId+' — Zone '+zone+' '+zn.name,'info');
+  } else {
+    const newId='CE'+panelState.ruleCounter++;
+    CE_RULES.push({id:newId,ifZone:zone,ifZoneName:zn.name,outputs,delay,active:false,enabled:true});
+    addLog('RULE ADDED: '+newId+' — Zone '+zone+' '+zn.name,'ok');
+  }
+  closeModal();renderCEEditor();renderCEPanel();
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.add('hidden');
+  editingRuleId=null;
+}
+
+// ── LOG ──
+function addLog(msg,type='info'){
+  const n=new Date();
+  const t=n.toTimeString().slice(0,8);
+  logEntries.unshift({msg,type,time:t});
+  if(logEntries.length>80)logEntries.pop();
+  const box=document.getElementById('log-box');
+  if(box) box.innerHTML=logEntries.map(e=>`<div class="log-entry ${e.type}">[${e.time}] ${e.msg}</div>`).join('');
+}
+
+// ── CLOCK ──
 function updateClock(){
   const n=new Date();
-  document.getElementById('clock').innerHTML=n.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+'<br>'+n.toTimeString().slice(0,8);
+  const el=document.getElementById('clock');
+  if(el) el.innerHTML=n.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+'<br>'+n.toTimeString().slice(0,8);
 }
-
-renderDevices();renderCE();renderOutputs();updateIndicators();
-addLog('PANEL ONLINE: System initialized — all zones normal','ok');
-addLog('INFO: Click any device to simulate alarm/fault · Use scenario buttons to load presets','info');
 setInterval(updateClock,1000);updateClock();
 </script>
+</body>
+</html>
