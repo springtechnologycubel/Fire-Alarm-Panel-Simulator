@@ -1,0 +1,447 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --panel:#1a1e24;--panel-face:#1f242c;--panel-border:#2e3540;
+    --led-off:#1a2a1a;--led-on:#00ff44;--led-alarm:#ff2020;--led-fault:#ffaa00;--led-ack:#ff8800;
+    --btn:#2a3040;--btn-h:#353d50;--btn-border:#3a4455;
+    --text-dim:#5a6a7a;--text-mid:#8a9aaa;--text-hi:#c8d8e8;--text-alarm:#ff4444;--text-fault:#ffaa00;--text-ok:#00cc44;
+    --seg:#0a1a0a;--seg-on:#00ff44;
+    --amber:#ffaa00;--red:#ff2020;--green:#00cc44;--blue:#4488ff;
+  }
+  body{background:var(--panel);font-family:'Share Tech Mono',monospace;color:var(--text-hi);min-height:100vh;padding:12px}
+  .panel-wrap{max-width:900px;margin:0 auto;background:var(--panel-face);border:2px solid var(--panel-border);border-radius:8px;overflow:hidden}
+  .panel-header{background:#141820;border-bottom:2px solid var(--panel-border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+  .panel-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:3px;color:var(--text-hi);text-transform:uppercase}
+  .panel-sub{font-size:10px;color:var(--text-dim);letter-spacing:2px}
+  .main-display{background:#0d1117;border:1px solid var(--panel-border);margin:12px;border-radius:4px;padding:10px;min-height:80px}
+  .disp-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .disp-label{font-size:10px;color:var(--text-dim);width:80px;flex-shrink:0;letter-spacing:1px}
+  .disp-val{font-size:13px;color:var(--text-hi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .disp-val.alarm{color:var(--text-alarm);animation:blink 0.5s infinite}
+  .disp-val.fault{color:var(--text-fault)}
+  .disp-val.ok{color:var(--text-ok)}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  .sections{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 12px 12px}
+  .section{background:#141820;border:1px solid var(--panel-border);border-radius:4px;padding:10px}
+  .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;border-bottom:1px solid var(--panel-border);padding-bottom:6px;margin-bottom:8px}
+  .device-list{display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto}
+  .device-row{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:3px;cursor:pointer;transition:background 0.15s;border:1px solid transparent}
+  .device-row:hover{background:#1f2a38;border-color:var(--panel-border)}
+  .device-row.alarm-state{background:#2a0a0a;border-color:#cc2020}
+  .device-row.fault-state{background:#2a1a00;border-color:#cc7700}
+  .dev-led{width:8px;height:8px;border-radius:50%;background:var(--led-off);flex-shrink:0;box-shadow:none}
+  .dev-led.on{background:var(--led-on);box-shadow:0 0 4px var(--led-on)}
+  .dev-led.alarm{background:var(--led-alarm);box-shadow:0 0 4px var(--led-alarm);animation:blink 0.5s infinite}
+  .dev-led.fault{background:var(--led-fault);box-shadow:0 0 4px var(--led-fault)}
+  .dev-addr{font-size:10px;color:var(--text-dim);width:42px;flex-shrink:0}
+  .dev-type{font-size:10px;color:var(--text-mid);width:34px;flex-shrink:0;text-align:center;background:#1a2030;border-radius:2px;padding:1px 3px}
+  .dev-name{font-size:11px;color:var(--text-hi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dev-status{font-size:10px;width:46px;text-align:right;flex-shrink:0}
+  .dev-status.normal{color:var(--text-dim)}
+  .dev-status.alarm{color:var(--text-alarm)}
+  .dev-status.fault{color:var(--text-fault)}
+  .dev-status.ack{color:var(--amber)}
+  .ce-list{display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto}
+  .ce-row{padding:6px 8px;border-radius:3px;border:1px solid var(--panel-border);font-size:11px}
+  .ce-row.active{border-color:#cc2020;background:#200a0a}
+  .ce-if{color:var(--text-dim);margin-bottom:3px}
+  .ce-then{color:var(--text-mid)}
+  .ce-if span,.ce-then span{font-weight:600}
+  .ce-if span{color:var(--amber)}
+  .ce-then span{color:var(--blue)}
+  .ce-row.active .ce-if span{color:var(--red);animation:blink 1s infinite}
+  .btn-panel{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 12px 12px}
+  .btn{background:var(--btn);border:1px solid var(--btn-border);color:var(--text-mid);font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:9px 6px;border-radius:3px;cursor:pointer;text-transform:uppercase;transition:all 0.1s;text-align:center;user-select:none}
+  .btn:hover{background:var(--btn-h);color:var(--text-hi)}
+  .btn:active{transform:scale(0.97)}
+  .btn.red{border-color:#992020;color:#ff4444}
+  .btn.red:hover{background:#2a0a0a}
+  .btn.amber{border-color:#996600;color:var(--amber)}
+  .btn.amber:hover{background:#2a1500}
+  .btn.green{border-color:#226622;color:var(--green)}
+  .btn.green:hover{background:#0a1f0a}
+  .btn.blue{border-color:#224488;color:var(--blue)}
+  .btn.blue:hover{background:#0a1530}
+  .indicator-row{display:flex;gap:8px;padding:0 12px 10px;flex-wrap:wrap}
+  .ind{display:flex;align-items:center;gap:5px}
+  .ind-led{width:10px;height:10px;border-radius:50%;background:var(--led-off)}
+  .ind-led.on{box-shadow:0 0 5px currentColor}
+  .ind-led.normal{background:var(--led-on);color:var(--led-on)}
+  .ind-led.alarm{background:var(--led-alarm);color:var(--led-alarm);animation:blink 0.5s infinite}
+  .ind-led.fault{background:var(--led-fault);color:var(--led-fault);animation:blink 1s infinite}
+  .ind-led.ack{background:var(--led-ack);color:var(--led-ack)}
+  .ind-led.sounder{background:var(--blue);color:var(--blue);animation:blink 0.4s infinite}
+  .ind-label{font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+  .log-wrap{padding:0 12px 12px}
+  .log-box{background:#0a0d12;border:1px solid var(--panel-border);border-radius:4px;height:90px;overflow-y:auto;padding:6px 8px}
+  .log-entry{font-size:10px;color:var(--text-dim);line-height:1.6;border-bottom:1px solid #1a2030;padding:1px 0}
+  .log-entry.alarm{color:#ff6666}
+  .log-entry.fault{color:#ffbb44}
+  .log-entry.ok{color:#44cc66}
+  .log-entry.info{color:#5588cc}
+  .zone-badge{display:inline-block;font-size:9px;padding:1px 4px;border-radius:2px;background:#1a2540;color:#4488ff;margin-left:4px}
+  .output-row{display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:3px;border:1px solid var(--panel-border);font-size:11px}
+  .output-row.active{border-color:#2244aa;background:#0a1530}
+  .out-led{width:8px;height:8px;border-radius:50%;background:var(--led-off);flex-shrink:0}
+  .out-led.on{background:var(--blue);box-shadow:0 0 4px var(--blue);animation:blink 0.4s infinite}
+  .out-name{flex:1;color:var(--text-mid)}
+  .out-name.on{color:var(--text-hi)}
+  .out-status{font-size:10px;color:var(--text-dim)}
+  .out-status.on{color:var(--blue)}
+  .scenario-bar{background:#141820;border-top:2px solid var(--panel-border);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .scn-label{font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;flex-shrink:0}
+  .scn-btn{background:#0d1520;border:1px solid #223355;color:#4488cc;font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 9px;border-radius:3px;cursor:pointer;letter-spacing:1px;transition:all 0.1s}
+  .scn-btn:hover{background:#1a2840;color:#66aaff}
+  .tooltip{position:relative}
+  .tooltip:hover::after{content:attr(data-tip);position:absolute;bottom:110%;left:50%;transform:translateX(-50%);background:#0d1117;border:1px solid var(--panel-border);color:var(--text-hi);font-size:10px;padding:4px 8px;border-radius:3px;white-space:nowrap;z-index:10;pointer-events:none}
+  .full-width{grid-column:1/-1}
+</style>
+
+<div class="panel-wrap">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">FACP — Addressable Fire Alarm Control Panel</div>
+      <div class="panel-sub">SIMULATOR v1.0 · EDUCATIONAL USE · NOT FOR LIFE SAFETY</div>
+    </div>
+    <div id="clock" style="font-size:12px;color:var(--text-mid);text-align:right"></div>
+  </div>
+
+  <div class="main-display">
+    <div class="disp-row">
+      <span class="disp-label">SYSTEM</span>
+      <span class="disp-val" id="disp-system">NORMAL — ALL ZONES CLEAR</span>
+    </div>
+    <div class="disp-row">
+      <span class="disp-label">LAST EVENT</span>
+      <span class="disp-val" id="disp-last">--</span>
+    </div>
+    <div class="disp-row">
+      <span class="disp-label">ALARMS</span>
+      <span class="disp-val" id="disp-alarms" style="width:80px">0</span>
+      <span class="disp-label" style="width:60px">FAULTS</span>
+      <span class="disp-val" id="disp-faults" style="width:60px">0</span>
+      <span class="disp-label" style="width:60px">UNACK</span>
+      <span class="disp-val" id="disp-unack" style="width:60px">0</span>
+    </div>
+  </div>
+
+  <div class="indicator-row">
+    <div class="ind"><div class="ind-led" id="led-normal"></div><span class="ind-label">Normal</span></div>
+    <div class="ind"><div class="ind-led" id="led-alarm"></div><span class="ind-label">Alarm</span></div>
+    <div class="ind"><div class="ind-led" id="led-fault"></div><span class="ind-label">Fault</span></div>
+    <div class="ind"><div class="ind-led" id="led-ack"></div><span class="ind-label">Acknowledged</span></div>
+    <div class="ind"><div class="ind-led" id="led-sounder"></div><span class="ind-label">Sounders Active</span></div>
+    <div class="ind"><div class="ind-led" id="led-evac"></div><span class="ind-label">Evacuation</span></div>
+  </div>
+
+  <div class="sections">
+    <div class="section">
+      <div class="sec-title">Addressable Devices</div>
+      <div class="device-list" id="device-list"></div>
+    </div>
+    <div class="section">
+      <div class="sec-title">Cause & Effect Rules</div>
+      <div class="ce-list" id="ce-list"></div>
+      <div class="sec-title" style="margin-top:10px">Outputs / Sounders</div>
+      <div id="output-list" style="display:flex;flex-direction:column;gap:4px;margin-top:6px"></div>
+    </div>
+  </div>
+
+  <div class="btn-panel">
+    <button class="btn amber tooltip" onclick="doAck()" data-tip="Silence panel buzzer, acknowledge active events">ACKNOWLEDGE</button>
+    <button class="btn red tooltip" onclick="doReset()" data-tip="Reset panel — clears all alarms if no active trigger">RESET</button>
+    <button class="btn blue tooltip" onclick="doSilenceSounders()" data-tip="Silence output sounders temporarily">SILENCE SOUNDERS</button>
+    <button class="btn green tooltip" onclick="doEvacuate()" data-tip="Manually trigger full evacuation">EVACUATE</button>
+    <button class="btn tooltip" onclick="doDisableSounder()" data-tip="Disable/re-enable a selected output">DISABLE OUTPUT</button>
+    <button class="btn tooltip" onclick="doTestMode()" data-tip="Toggle walk test mode — alarms logged, sounders suppressed" id="btn-test">TEST MODE</button>
+  </div>
+
+  <div class="log-wrap">
+    <div class="sec-title" style="padding:0 0 6px">Event Log</div>
+    <div class="log-box" id="log-box"></div>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scn-label">Scenarios:</span>
+    <button class="scn-btn" onclick="scenario('smoke_l1')">Smoke — L1 Lobby</button>
+    <button class="scn-btn" onclick="scenario('heat_kitchen')">Heat — Kitchen</button>
+    <button class="scn-btn" onclick="scenario('mcp_stairwell')">MCP — Stairwell</button>
+    <button class="scn-btn" onclick="scenario('fault_loop')">Loop Fault</button>
+    <button class="scn-btn" onclick="scenario('multi_zone')">Multi-Zone Alarm</button>
+    <button class="scn-btn" onclick="scenario('clear')">Clear All</button>
+  </div>
+</div>
+
+<script>
+const DEVICES = [
+  {addr:'001',type:'SD',name:'Lobby Smoke Detector',zone:1,zoneName:'L1-Lobby',state:'normal'},
+  {addr:'002',type:'SD',name:'Reception Smoke Detector',zone:1,zoneName:'L1-Lobby',state:'normal'},
+  {addr:'003',type:'HD',name:'Kitchen Heat Detector',zone:2,zoneName:'L1-Kitchen',state:'normal'},
+  {addr:'004',type:'SD',name:'Server Room Smoke',zone:3,zoneName:'L2-IT',state:'normal'},
+  {addr:'005',type:'MCP',name:'Stairwell A MCP',zone:4,zoneName:'Stairwell-A',state:'normal'},
+  {addr:'006',type:'MCP',name:'L1 Exit MCP',zone:1,zoneName:'L1-Lobby',state:'normal'},
+  {addr:'007',type:'SD',name:'Corridor L2 East',zone:5,zoneName:'L2-East',state:'normal'},
+  {addr:'008',type:'SD',name:'Corridor L2 West',zone:5,zoneName:'L2-East',state:'normal'},
+  {addr:'009',type:'HD',name:'Boiler Room Heat',zone:6,zoneName:'Basement',state:'normal'},
+  {addr:'010',type:'SD',name:'Basement Store',zone:6,zoneName:'Basement',state:'normal'},
+  {addr:'011',type:'MCP',name:'Basement Exit MCP',zone:6,zoneName:'Basement',state:'normal'},
+  {addr:'012',type:'SD',name:'L3 Office A Smoke',zone:7,zoneName:'L3-Office',state:'normal'},
+];
+
+const OUTPUTS = [
+  {id:'S1',name:'Sounder Zone 1 (Lobby)',state:'off',disabled:false},
+  {id:'S2',name:'Sounder Zone 2 (Kitchen)',state:'off',disabled:false},
+  {id:'S3',name:'Sounder All Floors',state:'off',disabled:false},
+  {id:'R1',name:'Relay — Fire Lift Recall',state:'off',disabled:false},
+  {id:'R2',name:'Relay — Smoke Dampers',state:'off',disabled:false},
+  {id:'R3',name:'Relay — Door Holders',state:'off',disabled:false},
+];
+
+const CE_RULES = [
+  {id:'CE1',ifZone:1,ifZoneName:'L1-Lobby',action:'Activate S1 + S3 + R3',outputs:['S1','S3','R3'],active:false},
+  {id:'CE2',ifZone:2,ifZoneName:'L1-Kitchen',action:'Activate S1 + S2 + S3 + R2',outputs:['S1','S2','S3','R2'],active:false},
+  {id:'CE3',ifZone:4,ifZoneName:'Stairwell-A',action:'Activate S3 + R1 (Lift Recall)',outputs:['S3','R1'],active:false},
+  {id:'CE4',ifZone:6,ifZoneName:'Basement',action:'Activate S3 + R1 + R2',outputs:['S3','R1','R2'],active:false},
+  {id:'CE5',ifZone:3,ifZoneName:'L2-IT',action:'Activate S3 + R2 + R3',outputs:['S3','R2','R3'],active:false},
+  {id:'CE6',ifZone:5,ifZoneName:'L2-East',action:'Activate S3',outputs:['S3'],active:false},
+  {id:'CE7',ifZone:7,ifZoneName:'L3-Office',action:'Activate S3 + R3',outputs:['S3','R3'],active:false},
+];
+
+let panelState = {alarms:0,faults:0,unack:0,soundersSilenced:false,evacuating:false,testMode:false,buzzing:false};
+let logEntries = [];
+
+function ts(){
+  const n=new Date();
+  return n.toTimeString().slice(0,8);
+}
+
+function addLog(msg,type='info'){
+  logEntries.unshift({msg,type,time:ts()});
+  if(logEntries.length>60)logEntries.pop();
+  renderLog();
+}
+
+function renderLog(){
+  const box=document.getElementById('log-box');
+  box.innerHTML=logEntries.map(e=>`<div class="log-entry ${e.type}">[${e.time}] ${e.msg}</div>`).join('');
+}
+
+function renderDevices(){
+  const list=document.getElementById('device-list');
+  list.innerHTML=DEVICES.map((d,i)=>{
+    let ledClass='',statusClass='normal',statusText='NORMAL';
+    if(d.state==='alarm'){ledClass='alarm';statusClass='alarm';statusText='ALARM';}
+    else if(d.state==='fault'){ledClass='fault';statusClass='fault';statusText='FAULT';}
+    else if(d.state==='ack'){ledClass='on';statusClass='ack';statusText='ACK';}
+    else{ledClass='';statusClass='normal';statusText='NRML';}
+    const rowClass=d.state==='alarm'?'device-row alarm-state':d.state==='fault'?'device-row fault-state':'device-row';
+    return `<div class="${rowClass}" onclick="triggerDevice(${i})" title="Click to simulate alarm on this device">
+      <div class="dev-led ${ledClass}"></div>
+      <span class="dev-addr">${d.addr}</span>
+      <span class="dev-type">${d.type}</span>
+      <span class="dev-name">${d.name}<span class="zone-badge">Z${d.zone}</span></span>
+      <span class="dev-status ${statusClass}">${statusText}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderCE(){
+  const list=document.getElementById('ce-list');
+  list.innerHTML=CE_RULES.map(r=>`<div class="ce-row ${r.active?'active':''}">
+    <div class="ce-if">IF <span>Zone ${r.ifZone} (${r.ifZoneName})</span> ALARM</div>
+    <div class="ce-then">THEN <span>${r.action}</span></div>
+  </div>`).join('');
+}
+
+function renderOutputs(){
+  const list=document.getElementById('output-list');
+  list.innerHTML=OUTPUTS.map(o=>`<div class="output-row ${o.state==='on'&&!o.disabled?'active':''}">
+    <div class="out-led ${o.state==='on'&&!o.disabled?'on':''}"></div>
+    <span class="out-name ${o.state==='on'&&!o.disabled?'on':''}">${o.id}: ${o.name}</span>
+    <span class="out-status ${o.state==='on'&&!o.disabled?'on':''}">${o.disabled?'DISABLED':o.state==='on'?'ACTIVE':'off'}</span>
+  </div>`).join('');
+}
+
+function updateIndicators(){
+  const hasAlarm=DEVICES.some(d=>d.state==='alarm');
+  const hasFault=DEVICES.some(d=>d.state==='fault');
+  const hasAck=DEVICES.some(d=>d.state==='ack');
+  const hasSounder=OUTPUTS.some(o=>o.state==='on'&&!o.disabled&&!panelState.soundersSilenced);
+  setLed('led-normal',!hasAlarm&&!hasFault?'normal':'');
+  setLed('led-alarm',hasAlarm?'alarm':'');
+  setLed('led-fault',hasFault?'fault':'');
+  setLed('led-ack',hasAck?'ack':'');
+  setLed('led-sounder',hasSounder?'sounder':'');
+  setLed('led-evac',panelState.evacuating?'alarm':'');
+  panelState.alarms=DEVICES.filter(d=>d.state==='alarm').length;
+  panelState.faults=DEVICES.filter(d=>d.state==='fault').length;
+  panelState.unack=DEVICES.filter(d=>d.state==='alarm').length;
+  document.getElementById('disp-alarms').textContent=panelState.alarms;
+  document.getElementById('disp-faults').textContent=panelState.faults;
+  document.getElementById('disp-unack').textContent=panelState.unack;
+  const sys=document.getElementById('disp-system');
+  if(panelState.evacuating){sys.textContent='** EVACUATION IN PROGRESS **';sys.className='disp-val alarm';}
+  else if(panelState.alarms>0){sys.textContent=`ALARM — ${panelState.alarms} DEVICE(S) ACTIVE`;sys.className='disp-val alarm';}
+  else if(panelState.faults>0){sys.textContent=`FAULT — ${panelState.faults} DEVICE(S)`;sys.className='disp-val fault';}
+  else{sys.textContent='NORMAL — ALL ZONES CLEAR';sys.className='disp-val ok';}
+}
+
+function setLed(id,cls){
+  const el=document.getElementById(id);
+  el.className='ind-led';
+  if(cls)el.classList.add(cls);
+}
+
+function triggerDevice(i){
+  const d=DEVICES[i];
+  if(d.state==='normal'||d.state==='ack'){
+    if(panelState.testMode){
+      addLog(`[TEST] Device ${d.addr} ${d.name} — alarm simulated (test mode, sounders suppressed)`,'info');
+      d.state='ack';
+    } else {
+      d.state='alarm';
+      addLog(`ALARM: Device ${d.addr} (${d.type}) ${d.name} — Zone ${d.zone} ${d.zoneName}`,'alarm');
+      document.getElementById('disp-last').textContent=`${d.addr} ${d.name} Z${d.zone}`;
+      applyCE(d.zone);
+    }
+  } else if(d.state==='alarm'){
+    addLog(`INFO: Device ${d.addr} manually returned to normal`,'ok');
+    d.state='normal';
+    recheckCE();
+  } else if(d.state==='fault'){
+    d.state='normal';
+    addLog(`FAULT CLEARED: Device ${d.addr} ${d.name}`,'ok');
+  }
+  renderDevices();
+  updateIndicators();
+  renderCE();
+  renderOutputs();
+}
+
+function applyCE(zone){
+  CE_RULES.forEach(r=>{
+    if(r.ifZone===zone&&!r.active){
+      r.active=true;
+      r.outputs.forEach(oid=>{
+        const o=OUTPUTS.find(x=>x.id===oid);
+        if(o&&!o.disabled&&!panelState.soundersSilenced){o.state='on';addLog(`OUTPUT ON: ${oid} — ${o.name}`,'info');}
+      });
+    }
+  });
+}
+
+function recheckCE(){
+  CE_RULES.forEach(r=>{
+    const zoneAlarm=DEVICES.some(d=>d.zone===r.ifZone&&d.state==='alarm');
+    if(!zoneAlarm&&r.active){
+      r.active=false;
+      r.outputs.forEach(oid=>{
+        const still=CE_RULES.some(x=>x.active&&x.outputs.includes(oid)&&x.id!==r.id);
+        if(!still){const o=OUTPUTS.find(x=>x.id===oid);if(o)o.state='off';}
+      });
+    }
+  });
+}
+
+function doAck(){
+  const alarms=DEVICES.filter(d=>d.state==='alarm');
+  if(alarms.length===0&&panelState.faults===0){addLog('ACK: No active events to acknowledge','info');return;}
+  alarms.forEach(d=>{d.state='ack';addLog(`ACK: Device ${d.addr} ${d.name} acknowledged`,'info');});
+  addLog('PANEL: Buzzer silenced — events acknowledged','ok');
+  renderDevices();updateIndicators();
+}
+
+function doReset(){
+  const activeAlarms=DEVICES.filter(d=>d.state==='alarm');
+  if(activeAlarms.length>0){addLog('RESET DENIED: Active alarms present — clear source first','fault');return;}
+  DEVICES.forEach(d=>{if(d.state==='ack')d.state='normal';});
+  CE_RULES.forEach(r=>{r.active=false;});
+  OUTPUTS.forEach(o=>{o.state='off';});
+  panelState.evacuating=false;panelState.soundersSilenced=false;
+  addLog('PANEL: System reset — all events cleared','ok');
+  document.getElementById('disp-last').textContent='--';
+  renderDevices();updateIndicators();renderCE();renderOutputs();
+}
+
+function doSilenceSounders(){
+  panelState.soundersSilenced=!panelState.soundersSilenced;
+  addLog(panelState.soundersSilenced?'SOUNDERS: All outputs silenced (outputs still energised)':'SOUNDERS: Silence cancelled — sounders restored',panelState.soundersSilenced?'fault':'ok');
+  updateIndicators();renderOutputs();
+}
+
+function doEvacuate(){
+  if(panelState.evacuating){addLog('EVACUATION: Already in progress','info');return;}
+  panelState.evacuating=true;
+  OUTPUTS.forEach(o=>{if(!o.disabled)o.state='on';});
+  CE_RULES.forEach(r=>{r.active=true;});
+  addLog('EVACUATION: Manual evacuation triggered — all outputs activated','alarm');
+  renderCE();renderOutputs();updateIndicators();
+}
+
+function doDisableSounder(){
+  const idx=OUTPUTS.findIndex(o=>!o.disabled);
+  if(idx<0){OUTPUTS.forEach(o=>o.disabled=false);addLog('OUTPUTS: All outputs re-enabled','ok');}
+  else{OUTPUTS[idx].disabled=!OUTPUTS[idx].disabled;addLog(`OUTPUT ${OUTPUTS[idx].disabled?'DISABLED':'ENABLED'}: ${OUTPUTS[idx].name}`,'fault');}
+  renderOutputs();updateIndicators();
+}
+
+function doTestMode(){
+  panelState.testMode=!panelState.testMode;
+  document.getElementById('btn-test').textContent=panelState.testMode?'TEST: ON':'TEST MODE';
+  document.getElementById('btn-test').style.color=panelState.testMode?'#44cc66':'';
+  addLog(panelState.testMode?'TEST MODE: Active — alarms logged, sounders suppressed':'TEST MODE: Deactivated',panelState.testMode?'info':'ok');
+}
+
+function scenario(s){
+  if(s==='clear'){
+    DEVICES.forEach(d=>d.state='normal');
+    CE_RULES.forEach(r=>r.active=false);
+    OUTPUTS.forEach(o=>{o.state='off';o.disabled=false;});
+    panelState.evacuating=false;panelState.soundersSilenced=false;panelState.testMode=false;
+    document.getElementById('btn-test').textContent='TEST MODE';
+    document.getElementById('btn-test').style.color='';
+    document.getElementById('disp-last').textContent='--';
+    addLog('SCENARIO: All conditions cleared — system normal','ok');
+  } else if(s==='smoke_l1'){
+    DEVICES.find(d=>d.addr==='001').state='alarm';
+    addLog('SCENARIO: Smoke detected — Lobby Smoke Detector (001) Zone 1','alarm');
+    document.getElementById('disp-last').textContent='001 Lobby Smoke Detector Z1';
+    applyCE(1);
+  } else if(s==='heat_kitchen'){
+    DEVICES.find(d=>d.addr==='003').state='alarm';
+    addLog('SCENARIO: Heat detected — Kitchen Heat Detector (003) Zone 2','alarm');
+    document.getElementById('disp-last').textContent='003 Kitchen Heat Detector Z2';
+    applyCE(2);
+  } else if(s==='mcp_stairwell'){
+    DEVICES.find(d=>d.addr==='005').state='alarm';
+    addLog('SCENARIO: Manual Call Point activated — Stairwell A (005) Zone 4','alarm');
+    document.getElementById('disp-last').textContent='005 Stairwell A MCP Z4';
+    applyCE(4);
+  } else if(s==='fault_loop'){
+    DEVICES.find(d=>d.addr==='007').state='fault';
+    DEVICES.find(d=>d.addr==='008').state='fault';
+    addLog('FAULT: Loop short circuit — Devices 007, 008 offline','fault');
+    document.getElementById('disp-last').textContent='Loop fault Z5 — 2 devices';
+  } else if(s==='multi_zone'){
+    DEVICES.find(d=>d.addr==='001').state='alarm';
+    DEVICES.find(d=>d.addr==='004').state='alarm';
+    DEVICES.find(d=>d.addr==='012').state='alarm';
+    addLog('SCENARIO: Multi-zone alarm — Zones 1, 3, 7','alarm');
+    document.getElementById('disp-last').textContent='Multi-zone: Z1 Z3 Z7';
+    applyCE(1);applyCE(3);applyCE(7);
+  }
+  renderDevices();updateIndicators();renderCE();renderOutputs();
+}
+
+function updateClock(){
+  const n=new Date();
+  document.getElementById('clock').innerHTML=n.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+'<br>'+n.toTimeString().slice(0,8);
+}
+
+renderDevices();renderCE();renderOutputs();updateIndicators();
+addLog('PANEL ONLINE: System initialized — all zones normal','ok');
+addLog('INFO: Click any device to simulate alarm/fault · Use scenario buttons to load presets','info');
+setInterval(updateClock,1000);updateClock();
+</script>
